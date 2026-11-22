@@ -2,7 +2,7 @@
 
 Eco Mini (the app) runs Eco, an environmental assistant that runs entirely on the phone: no server, no accounts,
 no analytics. Its only network use is a one-time download of its model files from
-Hugging Face, after the user taps **Download**.
+Hugging Face, after the user taps **Download**. Please note the model will exceed memory on most phones with less than 12 GB of RAM. 
 
 - Kotlin + Jetpack Compose UI: chat (with a drawer of saved chats), setup and settings screens.
 - Chats are saved only on the phone, one JSON file per chat in the app's private storage
