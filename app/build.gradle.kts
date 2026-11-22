@@ -22,8 +22,8 @@ android {
         applicationId = "org.escc.ecomini"
         minSdk = 31
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.0.3"
+        versionCode = 3
+        versionName = "0.0.3.1"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {

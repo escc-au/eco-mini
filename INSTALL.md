@@ -3,12 +3,12 @@
 Three parts: (1) publish the model files on Hugging Face, (2) put the APK on the phone,
 (3) run the first-time download.
 
-The APK is `app/build/outputs/apk/release/app-release.apk` (a copy is in `release/Eco-Mini-0.0.3.apk`).
+The APK is `app/build/outputs/apk/release/app-release.apk` (a copy is in `release/Eco-Mini-0.0.3.1.apk`).
 
-**Updating from the earlier "Eco" 1.0 build:** just install the new APK over it (step 2 below,
-without uninstalling). It has the same app ID and signing key and a higher version code, so the
+**Updating from an earlier build (Eco 1.0, Eco Mini 0.0.3):** just install the new APK over it
+(step 2 below, without uninstalling). It has the same app ID and signing key and a higher version code, so the
 downloaded model files are kept. The app is now called **Eco Mini**. Its version number reads
-0.0.3, lower than the old "1.0" label, but Android only compares the internal version code (now 2),
+0.0.3.1, lower than the old "1.0" label, but Android only compares the internal version code (now 3),
 so it installs as an update.
 
 ---
@@ -78,7 +78,7 @@ files whose checksum changed. No app update is needed.
 
 ## 2. Put the APK on the phone
 
-1. Copy `Eco-Mini-0.0.3.apk` to the phone, any way you like: USB cable (the phone appears as a drive;
+1. Copy `Eco-Mini-0.0.3.1.apk` to the phone, any way you like: USB cable (the phone appears as a drive;
    put it in `Download`), a cloud drive, or email it to yourself.
 2. On the phone, open the **Files** app (or the app you received it in) and tap the APK.
 3. Android says installing from this source isn't allowed. Tap **Settings**, turn on
@@ -167,9 +167,13 @@ or a screenshot of Settings.
 **Backends** (Settings → Engine → "In use")
 13. OnePlus 13: shows `GPU (OpenCL: …Adreno…)`. Answers should match the CPU's (turn on
     Force CPU, ask the same question, compare; then turn it off).
-14. Pixel 8a: shows either `GPU (Vulkan: Mali…)` or `CPU, 5 threads`. **Compare speed and answers
-    with Force CPU on.** Mali + Vulkan in llama.cpp can be slower than the CPU or give different
-    text; if so, tell me and I'll make the CPU the default on Mali.
+14. Pixel 8a (and any phone with under 12 GB): Settings shows `CPU, 5 threads · 2,048-token context ·
+    weights read from file (low-memory phone)` and "(low-memory mode)" next to Memory; there is no
+    Force CPU switch. **Main check for this version: the app is no longer killed** while loading or
+    answering, including after a few questions in a row. If you can run `adb logcat -s EcoEngine`, it
+    logs the backend, `n_ctx=2048` and `repack=false`.
+14a. With several heavy apps open, Eco Mini may say "Not enough free memory, close other apps and try
+    again" instead of loading. Close some apps and tap Try again: it loads.
 15. If the app ever crashes while "Getting Eco ready…", reopen it: it should start on the CPU and
     Settings should say "The GPU stopped the app last time".
 16. Rough speed on CPU: you should see the first words within ~30 s of asking, then several words
@@ -188,7 +192,7 @@ or a screenshot of Settings.
 22. "Delete downloaded files" asks for confirmation; going back afterwards shows the setup
     screen. (Do this last: you'll need to download again.)
 23. Dark mode: black background, white text, blue accents; your messages in dark blue bubbles.
-24. Settings → About shows "Version 0.0.3 (2)".
+24. Settings → About shows "Version 0.0.3.1 (3)".
 
 **Saved chats**
 25. Ask two questions, then open the menu (☰, top left): the chat is listed, titled with the first

@@ -105,7 +105,8 @@ void free_session(Session *s) {
     delete s;
 }
 
-Session *load(const std::string &path, const std::string &device, int n_threads, int n_ctx, bool embedder) {
+Session *load(const std::string &path, const std::string &device, int n_threads, int n_ctx, bool embedder,
+             bool repack = true) {
     llama_model_params mp = llama_model_default_params();
     ggml_backend_dev_t devs[2] = {nullptr, nullptr};
     if (!device.empty()) {
@@ -120,6 +121,9 @@ Session *load(const std::string &path, const std::string &device, int n_threads,
     }
     mp.devices = devs;  // {nullptr} alone means: no GPU devices at all
     mp.load_mode = LLAMA_LOAD_MODE_MMAP;  // map the file in place (works for /proc/self/fd paths too)
+    // false: CPU weights stay memory-mapped from the file instead of being repacked into an
+    // anonymous copy (CPU_REPACK), which would double the model's RAM use.
+    mp.use_extra_bufts = repack;
 
     auto *s = new Session();
     s->embedder = embedder;
@@ -242,8 +246,8 @@ Java_org_escc_ecomini_engine_LlamaNative_listDevices(JNIEnv *env, jclass) {
 
 JNIEXPORT jlong JNICALL
 Java_org_escc_ecomini_engine_LlamaNative_loadModel(JNIEnv *env, jclass, jstring path, jstring device,
-                                                   jint nThreads, jint nCtx) {
-    return reinterpret_cast<jlong>(load(jstr(env, path), jstr(env, device), nThreads, nCtx, false));
+                                                   jint nThreads, jint nCtx, jboolean repack) {
+    return reinterpret_cast<jlong>(load(jstr(env, path), jstr(env, device), nThreads, nCtx, false, repack));
 }
 
 JNIEXPORT jlong JNICALL

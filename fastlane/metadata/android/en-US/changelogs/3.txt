@@ -1,0 +1,1 @@
+Fixes the app being closed by Android on phones with 8 GB of memory: on phones with under 12 GB, Eco Mini now runs on the CPU, reads the model directly from its file and uses a 2,048-token context. Shows a message instead of loading when free memory is too low.

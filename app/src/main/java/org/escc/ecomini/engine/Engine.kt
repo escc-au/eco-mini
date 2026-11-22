@@ -1,5 +1,6 @@
 package org.escc.ecomini.engine
 
+import android.app.ActivityManager
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.os.ParcelFileDescriptor
@@ -32,6 +33,21 @@ class Engine(private val ctx: Context, private val store: Store) {
     private val _state = MutableStateFlow<State>(State.Unloaded)
     val state: StateFlow<State> = _state
 
+    private val am = ctx.getSystemService(ActivityManager::class.java)
+    private fun memInfo() = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+
+    /** Total RAM as Android reports it (after kernel and firmware reservations). */
+    val totalMem: Long = memInfo().totalMem
+
+    /** How the current (or next) load is set up; decided from totalMem and the settings. */
+    @Volatile var plan: MemoryPlan.Plan = currentPlan()
+        private set
+
+    private fun currentPlan() = MemoryPlan.plan(totalMem, store.forceCpu, store.gpuBroken)
+
+    /** Context size of the loaded model: 4,096, or 2,048 on low-memory phones. */
+    val contextSize: Int get() = plan.contextSize
+
     /** e.g. "GPU (OpenCL): QUALCOMM Adreno(TM) 830" or "CPU, 8 threads". */
     @Volatile var backend: String = "Not loaded"
         private set
@@ -43,6 +59,8 @@ class Engine(private val ctx: Context, private val store: Store) {
     private var db: SQLiteDatabase? = null
     private var modelFd: ParcelFileDescriptor? = null
 
+    class NotEnoughMemory : Exception("Not enough free memory, close other apps and try again")
+
     companion object {
         private const val TAG = "EcoEngine"
         private var libsLoaded = false
@@ -52,7 +70,8 @@ class Engine(private val ctx: Context, private val store: Store) {
         if (libsLoaded) return
         System.loadLibrary("ecosearch")
         System.loadLibrary("eco")
-        val gpu = !store.gpuBroken
+        // Low-memory phones never touch the GPU drivers (their buffers would duplicate the model).
+        val gpu = !store.gpuBroken && !plan.lowMemory
         // Covers GPU driver start-up too: if it crashes the app, EcoApp sees the flag next time.
         if (gpu) store.gpuAttempt = true
         LlamaNative.initBackends(ctx.applicationInfo.nativeLibraryDir, gpu)
@@ -69,9 +88,14 @@ class Engine(private val ctx: Context, private val store: Store) {
     private suspend fun loadOnThread() = withContext(thread) {
         if (_state.value == State.Ready) return@withContext
         try {
+            // Free the old model, context, index and embedder completely before loading anything new.
             freeAll()
             doLoad()
             _state.value = State.Ready
+        } catch (e: NotEnoughMemory) {
+            Log.w(TAG, "not loading: not enough free memory")
+            freeAll()
+            _state.value = State.Failed(e.message!!)
         } catch (e: Throwable) {
             Log.e(TAG, "load failed", e)
             freeAll()
@@ -81,6 +105,7 @@ class Engine(private val ctx: Context, private val store: Store) {
 
     private fun doLoad() {
         _state.value = State.Loading("Starting")
+        plan = currentPlan()
         loadLibs()
         val threads = Threads.count()
 
@@ -96,17 +121,32 @@ class Engine(private val ctx: Context, private val store: Store) {
         loadIndex(indexFile)
 
         _state.value = State.Loading("Loading Eco")
-        val modelPath = openModel()
-        val pick = if (store.forceCpu || store.gpuBroken) null else pickGpu()
+        val (modelPath, modelBytes) = openModel()
+        val p = plan
+        val info = memInfo()
+        val needed = MemoryPlan.bytesNeeded(p, modelBytes)
+        Log.i(TAG, "memory: total ${MemoryPlan.gib(info.totalMem)}, available ${MemoryPlan.gib(info.availMem)}, " +
+            "model needs about ${MemoryPlan.gib(needed)} more, low-memory phone: ${p.lowMemory}")
+        if (info.availMem < needed) throw NotEnoughMemory()
+
+        val pick = if (p.allowGpu) pickGpu() else null
         if (pick != null) {
+            Log.i(TAG, "loading: backend=GPU ${pick.second}, n_ctx=${p.contextSize}, repack=${p.repack}")
             store.gpuAttempt = true
-            llm = LlamaNative.loadModel(modelPath, pick.first, threads, Prompt.CONTEXT_SIZE)
+            llm = LlamaNative.loadModel(modelPath, pick.first, threads, p.contextSize, p.repack)
             store.gpuAttempt = false
-            if (llm != 0L) backend = "GPU (${pick.second})" else Log.w(TAG, "GPU load failed, using CPU")
+            if (llm != 0L) backend = "GPU (${pick.second})"
+            else Log.w(TAG, "GPU load failed (already freed by the native side), using CPU")
         }
         if (llm == 0L) {
-            llm = LlamaNative.loadModel(modelPath, "", threads, Prompt.CONTEXT_SIZE)
+            Log.i(TAG, "loading: backend=CPU, threads=$threads, n_ctx=${p.contextSize}, repack=${p.repack}")
+            llm = LlamaNative.loadModel(modelPath, "", threads, p.contextSize, p.repack)
             backend = "CPU, $threads threads"
+        }
+        if (llm != 0L) {
+            backend += " · ${"%,d".format(p.contextSize)}-token context" +
+                if (p.lowMemory) " · weights read from file (low-memory phone)" else ""
+            Log.i(TAG, "loaded: $backend (n_ctx=${p.contextSize}, repack=${p.repack})")
         }
         if (llm == 0L) error("Could not load the Eco model")
     }
@@ -120,17 +160,18 @@ class Engine(private val ctx: Context, private val store: Store) {
         return d?.let { it[0] to "${if (it[0].contains("OpenCL", true)) "OpenCL" else "Vulkan"}: ${it[1]}" }
     }
 
-    private fun openModel(): String = when (val loc = store.modelLocation() ?: error("The model file is missing")) {
+    /** Returns the path llama.cpp should open and the model's size in bytes. */
+    private fun openModel(): Pair<String, Long> = when (val loc = store.modelLocation() ?: error("The model file is missing")) {
         is Store.ModelLocation.Path -> {
             Checks.checkModel(loc.file.inputStream().use(Checks::readGguf))?.let { error(it) }
-            loc.file.path
+            loc.file.path to loc.file.length()
         }
         is Store.ModelLocation.Content -> {
             val pfd = ctx.contentResolver.openFileDescriptor(loc.uri, "r") ?: error("Cannot open the chosen model")
             modelFd = pfd
             Checks.checkModel(FileInputStream(pfd.fileDescriptor).let(Checks::readGguf))?.let { error(it) }
             // llama.cpp reopens and memory-maps the file in place through this path.
-            "/proc/self/fd/${pfd.fd}"
+            "/proc/self/fd/${pfd.fd}" to pfd.statSize
         }
     }
 
@@ -178,7 +219,7 @@ class Engine(private val ctx: Context, private val store: Store) {
 
     /** Leaves out the oldest turns of the prompt (never of the saved chat) until it fits the context. */
     private fun fit(history: List<Prompt.Turn>, reserve: Int, build: (List<Prompt.Turn>) -> String): String {
-        val (prompt, dropped) = History.fit(history, reserve, ::tokens, Prompt.CONTEXT_SIZE, build)
+        val (prompt, dropped) = History.fit(history, reserve, ::tokens, contextSize, build)
         if (dropped > 0) Log.i(TAG, "left the oldest $dropped of ${history.size} turns out of the prompt")
         return prompt
     }
@@ -220,8 +261,11 @@ class Engine(private val ctx: Context, private val store: Store) {
     }
 
     private fun freeAll() {
-        // Reverse order of loading.
-        if (llm != 0L) LlamaNative.free(llm)
+        // Reverse order of loading. LlamaNative.free releases sampler, context (KV cache) and model.
+        if (llm != 0L) {
+            LlamaNative.free(llm)
+            Log.i(TAG, "freed the previous model and context")
+        }
         llm = 0L
         modelFd?.close()
         modelFd = null

@@ -103,6 +103,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun engineBackend(): String = engine.backend
 
+    /** True on phones with under 12 GB of RAM: CPU only, weights read from the file, 2,048-token context. */
+    val lowMemoryPhone: Boolean get() = engine.plan.lowMemory
+    val totalMemory: Long get() = engine.totalMem
+
     // ---------------------------------------------------------------- setup and downloads
 
     fun checkDownloadSize(isUpdate: Boolean = false) {

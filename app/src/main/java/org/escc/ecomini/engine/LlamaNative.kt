@@ -14,7 +14,7 @@ object LlamaNative {
 
     @JvmStatic external fun initBackends(libDir: String, gpu: Boolean)
     @JvmStatic external fun listDevices(): Array<String>
-    @JvmStatic external fun loadModel(path: String, device: String, nThreads: Int, nCtx: Int): Long
+    @JvmStatic external fun loadModel(path: String, device: String, nThreads: Int, nCtx: Int, repack: Boolean): Long
     @JvmStatic external fun loadEmbedder(path: String, nThreads: Int): Long
     @JvmStatic external fun countTokens(handle: Long, text: ByteArray): Int
     @JvmStatic external fun embed(handle: Long, text: ByteArray): FloatArray?

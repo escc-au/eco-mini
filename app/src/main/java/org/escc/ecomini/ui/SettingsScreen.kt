@@ -77,8 +77,21 @@ fun SettingsScreen(vm: MainViewModel) {
                     Engine.State.Unloaded -> "Not loaded"
                 }
                 Text("In use: $inUse")
-                Toggle("Force CPU", store.forceCpu) { vm.setForceCpu(it) }
-                if (store.gpuBroken && !store.forceCpu) {
+                Text(
+                    "Memory: ${formatSize(vm.totalMemory)}" + if (vm.lowMemoryPhone) " (low-memory mode)" else "",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (vm.lowMemoryPhone) {
+                    Text(
+                        "This phone has under 12 GB of memory, so Eco Mini always uses the CPU, reads the model " +
+                            "straight from its file and uses a shorter context (2,048 tokens). " +
+                            "Long chats are trimmed sooner in what is sent to the model; your saved chats are not.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Toggle("Force CPU", store.forceCpu) { vm.setForceCpu(it) }
+                }
+                if (store.gpuBroken && !store.forceCpu && !vm.lowMemoryPhone) {
                     Text(
                         "The GPU stopped the app last time, so Eco Mini uses the CPU.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
