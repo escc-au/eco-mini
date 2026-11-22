@@ -71,6 +71,11 @@ fun SetupScreen(vm: MainViewModel) {
                         "it needs two files: the Eco language model and its knowledge index. They are " +
                         "downloaded once from Hugging Face (huggingface.co), and after that Eco Mini works offline.",
                 )
+                Text(
+                    "Phones with less than 12 GB of memory may fail to run Eco Mini, or may run it slowly. " +
+                        "Using Eco Mini on a phone with less than 8 GB of memory is not recommended.",
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
             when (val s = state) {
                 SetupState.Intro -> {
