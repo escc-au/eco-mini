@@ -1,0 +1,30 @@
+# Draft for fdroiddata: metadata/org.escc.ecomini.yml
+# Fill in the repository URLs and tag the release (git tag v1.0) before submitting.
+Categories:
+  - Science & Education
+License: Apache-2.0
+SourceCode: https://example.invalid/eco-android
+IssueTracker: https://example.invalid/eco-android/issues
+
+AutoName: Eco
+
+RepoType: git
+Repo: https://example.invalid/eco-android.git
+
+Builds:
+  - versionName: '1.0'
+    versionCode: 1
+    commit: v1.0
+    subdir: app
+    submodules: true
+    sudo:
+      - apt-get update
+      - apt-get install -y python3 g++
+    gradle:
+      - yes
+    ndk: r27c
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: '1.0'
+CurrentVersionCode: 1

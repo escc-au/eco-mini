@@ -1,0 +1,43 @@
+Eco for Android
+Copyright 2026 Eco developers
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes or is built from the following third-party components.
+
+--------------------------------------------------------------------------------
+Bundled data file: app/src/main/assets/bge-small-en-v1.5-q8_0.gguf
+--------------------------------------------------------------------------------
+Model:    bge-small-en-v1.5, by the Beijing Academy of Artificial Intelligence (BAAI)
+Source:   https://huggingface.co/BAAI/bge-small-en-v1.5
+Licence:  MIT
+Format:   GGUF, Q8_0 quantisation, converted with llama.cpp (third_party/llama.cpp):
+
+    git clone https://huggingface.co/BAAI/bge-small-en-v1.5
+    python3 third_party/llama.cpp/convert_hf_to_gguf.py bge-small-en-v1.5 \
+        --outtype q8_0 --outfile app/src/main/assets/bge-small-en-v1.5-q8_0.gguf
+
+SHA-256 of the bundled file:
+    96934e831956e6502b6ab1071e0f642b6e610a2efd0a4ae486972b3b95cb2178
+
+--------------------------------------------------------------------------------
+Native code built from source (git submodules in third_party/)
+--------------------------------------------------------------------------------
+llama.cpp / ggml        https://github.com/ggml-org/llama.cpp          MIT
+OpenCL-Headers          https://github.com/KhronosGroup/OpenCL-Headers Apache-2.0
+OpenCL-ICD-Loader       https://github.com/KhronosGroup/OpenCL-ICD-Loader  Apache-2.0
+                        (used only at link time; not shipped in the APK)
+Vulkan-Headers          https://github.com/KhronosGroup/Vulkan-Headers Apache-2.0 OR MIT
+SPIRV-Headers           https://github.com/KhronosGroup/SPIRV-Headers  MIT-style (Khronos)
+
+--------------------------------------------------------------------------------
+Java/Kotlin libraries (from Google's Maven and Maven Central)
+--------------------------------------------------------------------------------
+AndroidX (core, activity, lifecycle, Compose, Material 3)   Apache-2.0
+Kotlin standard library, kotlinx.coroutines                   Apache-2.0
+
+--------------------------------------------------------------------------------
+Downloaded at first run (not part of the APK)
+--------------------------------------------------------------------------------
+Eco-4B model (eco-4b-Q6_K.gguf), fine-tuned from Qwen3-4B (Apache-2.0), and the
+Eco knowledge index (eco-index.sqlite), from https://huggingface.co/escc/eco-4b-gguf

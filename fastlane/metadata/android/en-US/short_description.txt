@@ -1,0 +1,1 @@
+An environmental assistant that runs offline and privately on your phone.
