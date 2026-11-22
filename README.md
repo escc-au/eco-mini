@@ -1,10 +1,13 @@
-# Eco for Android
+# Eco Mini for Android
 
-Eco is an environmental assistant that runs entirely on the phone: no server, no accounts,
+Eco Mini (the app) runs Eco, an environmental assistant that runs entirely on the phone: no server, no accounts,
 no analytics. Its only network use is a one-time download of its model files from
 Hugging Face, after the user taps **Download**.
 
-- Kotlin + Jetpack Compose UI: chat, setup and settings screens.
+- Kotlin + Jetpack Compose UI: chat (with a drawer of saved chats), setup and settings screens.
+- Chats are saved only on the phone, one JSON file per chat in the app's private storage
+  (`chat/ChatStore.kt`). When a long chat doesn't fit the 4,096-token context, the oldest turns are
+  left out of the prompt only (`chat/History.kt`); the saved chat is never changed.
 - llama.cpp through a thin JNI bridge (`app/src/main/cpp/eco_jni.cpp`).
 - Retrieval: bge-small-en-v1.5 (bundled, 35 MB) embeds the question; a brute-force int8
   search in C++ (`vecsearch.cpp`) finds the top 3 chunks in the SQLite index; Eco-4B answers
@@ -26,8 +29,10 @@ shader generator and the unit-test copy of the search code).
 git clone --recurse-submodules <repo-url> eco-android
 cd eco-android
 echo "sdk.dir=$ANDROID_HOME" > local.properties
-./gradlew assembleRelease lintRelease testReleaseUnitTest
+./gradlew assembleRelease lintRelease
 ```
+
+`assembleRelease` runs the unit tests first (`testReleaseUnitTest`) and fails if any fail.
 
 The APK is in `app/build/outputs/apk/release/`. It is unsigned unless you pass a signing
 properties file:

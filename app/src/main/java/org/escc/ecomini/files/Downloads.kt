@@ -28,7 +28,7 @@ class Downloads(ctx: Context, private val store: Store) {
             if (already) continue
             store.partFile(f.name).delete()
             val req = DownloadManager.Request(Uri.parse(store.baseUrl + f.name))
-                .setTitle("Eco: ${f.name}")
+                .setTitle("Eco Mini: ${f.name}")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                 .setDestinationInExternalFilesDir(app, null, "${f.name}.part")
             if (store.wifiOnly) {

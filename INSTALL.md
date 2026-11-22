@@ -1,9 +1,15 @@
-# Installing Eco
+# Installing Eco Mini
 
 Three parts: (1) publish the model files on Hugging Face, (2) put the APK on the phone,
 (3) run the first-time download.
 
-The APK is `app/build/outputs/apk/release/app-release.apk` (a copy is in `release/Eco-1.0.apk`).
+The APK is `app/build/outputs/apk/release/app-release.apk` (a copy is in `release/Eco-Mini-0.0.3.apk`).
+
+**Updating from the earlier "Eco" 1.0 build:** just install the new APK over it (step 2 below,
+without uninstalling). It has the same app ID and signing key and a higher version code, so the
+downloaded model files are kept. The app is now called **Eco Mini**. Its version number reads
+0.0.3, lower than the old "1.0" label, but Android only compares the internal version code (now 2),
+so it installs as an update.
 
 ---
 
@@ -72,7 +78,7 @@ files whose checksum changed. No app update is needed.
 
 ## 2. Put the APK on the phone
 
-1. Copy `Eco-1.0.apk` to the phone, any way you like: USB cable (the phone appears as a drive;
+1. Copy `Eco-Mini-0.0.3.apk` to the phone, any way you like: USB cable (the phone appears as a drive;
    put it in `Download`), a cloud drive, or email it to yourself.
 2. On the phone, open the **Files** app (or the app you received it in) and tap the APK.
 3. Android says installing from this source isn't allowed. Tap **Settings**, turn on
@@ -90,7 +96,7 @@ old app uninstalled first, which deletes the downloaded files.
 
 ## 3. First run
 
-1. Open **Eco**. The setup screen explains what will be downloaded.
+1. Open **Eco Mini**. The setup screen explains what will be downloaded.
 2. Tap **Check download size**. This is the first time the app goes online: it reads
    `manifest.json` (a few hundred bytes).
 3. It shows the total size (about 3.5 GB). Leave **Wi-Fi only** on unless you mean to use
@@ -103,7 +109,7 @@ old app uninstalled first, which deletes the downloaded files.
    CPU). Then the chat opens.
 
 **No internet on the phone?** Download the three files on a computer, copy the `.gguf` and
-`.sqlite` to the phone, then in Eco tap the gear → **Use files on this phone** and choose each one.
+`.sqlite` to the phone, then in Eco Mini tap the gear → **Use files on this phone** and choose each one.
 The model is read where it is (don't delete it); the index is copied into the app.
 
 ---
@@ -137,7 +143,8 @@ useful information is `adb logcat -s EcoNative EcoEngine llama` (if you ever con
 or a screenshot of Settings.
 
 **Install and setup**
-1. The APK installs, and the launcher shows Eco with a blue leaf icon.
+1. The APK installs over the old version without uninstalling, the launcher shows **Eco Mini**
+   with a blue leaf icon, and it goes straight to the chat (no new download).
 2. Nothing downloads until you tap the buttons.
 3. "Check download size" shows about 3.5 GB and the two file sizes.
 4. With Wi-Fi only on and Wi-Fi off, the download waits ("Waiting for Wi-Fi") and continues when
@@ -181,3 +188,19 @@ or a screenshot of Settings.
 22. "Delete downloaded files" asks for confirmation; going back afterwards shows the setup
     screen. (Do this last: you'll need to download again.)
 23. Dark mode: black background, white text, blue accents; your messages in dark blue bubbles.
+24. Settings → About shows "Version 0.0.3 (2)".
+
+**Saved chats**
+25. Ask two questions, then open the menu (☰, top left): the chat is listed, titled with the first
+    question (cut to about 40 characters), with the date.
+26. Tap **+** for a new chat, ask something, then reopen the first chat from the menu: the whole
+    conversation is there. Ask a follow-up: it continues that conversation (answers use its history).
+27. Close the app mid-answer (swipe it away), reopen the chat: everything up to about two seconds
+    before closing is there.
+28. A very long chat (20+ questions) still answers new questions; the whole conversation stays
+    visible and saved even though only the recent part is sent to the model.
+29. Long-press a chat in the list: a confirmation appears; **Delete** removes it, **Cancel** keeps it.
+30. Settings → **Delete all chats** asks first, then empties the list.
+31. Chats survive restarting the phone.
+32. Reinstalling the APK over the app keeps chats; uninstalling deletes them (they are stored only in
+    the app and are never backed up).

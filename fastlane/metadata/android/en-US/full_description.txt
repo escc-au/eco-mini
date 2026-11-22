@@ -1,20 +1,21 @@
-Eco is a warm, thoughtful assistant for questions about nature, climate and caring for the living world.
+Eco Mini is a warm, thoughtful assistant for questions about nature, climate and caring for the living world.
 
 Everything runs on your phone:
 <ul>
 <li>No account, no server, no tracking, no ads.</li>
 <li>Nothing you type leaves your phone.</li>
-<li>After a one-time download of its files, Eco works offline.</li>
+<li>After a one-time download of its files, Eco Mini works offline.</li>
+<li>Your chats are saved only on your phone; reopen them from the Chats list and carry on.</li>
 </ul>
 
 Eco answers from a built-in library of trusted environmental information. It looks up the most relevant passages for each question and answers only from them. If its sources don't cover a question, it says so instead of guessing.
 
 <b>First start</b>
-On first start Eco shows how much it needs to download (about 3.5 GB: the Eco language model and its knowledge index) and waits for you to tap Download. Wi-Fi only is on by default. The download runs in the background and resumes if interrupted. Each file is checked against its published SHA-256 checksum before use.
+On first start Eco Mini shows how much it needs to download (about 3.5 GB: the Eco language model and its knowledge index) and waits for you to tap Download. Wi-Fi only is on by default. The download runs in the background and resumes if interrupted. Each file is checked against its published SHA-256 checksum before use.
 
 You can also copy the files to the phone yourself, for example after downloading them on a computer, and choose them in Settings.
 
 <b>Requirements</b>
-A 64-bit ARM phone with at least 8 GB of RAM and about 4 GB of free storage. Eco uses the phone's GPU where possible (OpenCL on Snapdragon/Adreno, Vulkan elsewhere) and otherwise the CPU.
+A 64-bit ARM phone with at least 8 GB of RAM and about 4 GB of free storage. Eco Mini uses the phone's GPU where possible (OpenCL on Snapdragon/Adreno, Vulkan elsewhere) and otherwise the CPU.
 
-Eco is built on llama.cpp and the Qwen3-4B model.
+Eco Mini is built on llama.cpp and the Qwen3-4B model.

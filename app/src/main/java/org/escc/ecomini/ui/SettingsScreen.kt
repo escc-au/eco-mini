@@ -80,7 +80,7 @@ fun SettingsScreen(vm: MainViewModel) {
                 Toggle("Force CPU", store.forceCpu) { vm.setForceCpu(it) }
                 if (store.gpuBroken && !store.forceCpu) {
                     Text(
-                        "The GPU stopped the app last time, so Eco uses the CPU.",
+                        "The GPU stopped the app last time, so Eco Mini uses the CPU.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     OutlinedButton(onClick = vm::retryGpu) { Text("Try the GPU again") }
@@ -132,10 +132,28 @@ fun SettingsScreen(vm: MainViewModel) {
                 }
                 Toggle("Wi-Fi only", store.wifiOnly) { vm.setWifiOnly(it) }
 
-                Section("About")
+                Section("Chats")
                 Text(
-                    "Eco ${BuildConfig.VERSION_NAME}. Free software under the Apache 2.0 licence. " +
-                        "Runs on llama.cpp. The app only goes online to download its files, when you ask it to.",
+                    "Chats are saved only on this phone.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                var confirmChats by remember { mutableStateOf(false) }
+                if (!confirmChats) {
+                    OutlinedButton(onClick = { confirmChats = true }) { Text("Delete all chats") }
+                } else {
+                    Text("Delete every saved chat? This can't be undone.")
+                    Row {
+                        Button(onClick = { confirmChats = false; vm.deleteAllChats() }) { Text("Delete all") }
+                        TextButton(onClick = { confirmChats = false }) { Text("Cancel") }
+                    }
+                }
+
+                Section("About")
+                Text("Eco Mini", style = MaterialTheme.typography.titleSmall)
+                Text("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                Text(
+                    "Free software under the Apache 2.0 licence. Runs on llama.cpp. " +
+                        "The app only goes online to download its files, when you ask it to.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

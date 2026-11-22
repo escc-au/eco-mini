@@ -1,6 +1,24 @@
 package org.escc.ecomini.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,7 +68,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.escc.ecomini.MainViewModel
-import org.escc.ecomini.Msg
+import org.escc.ecomini.chat.ChatSummary
+import org.escc.ecomini.chat.Msg
 import org.escc.ecomini.engine.Engine
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,44 +78,128 @@ fun ChatScreen(vm: MainViewModel) {
     val state by vm.engineState.collectAsStateWithLifecycle()
     val messages by vm.messages.collectAsStateWithLifecycle()
     val generating by vm.generating.collectAsStateWithLifecycle()
+    val chats by vm.chatList.collectAsStateWithLifecycle()
+    val currentId by vm.currentChatId.collectAsStateWithLifecycle()
+    val drawer = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text("Eco") },
-                    actions = {
-                        IconButton(onClick = vm::newChat, enabled = messages.isNotEmpty()) {
-                            Icon(Icons.Default.Add, contentDescription = "New chat")
-                        }
-                        IconButton(onClick = vm::openSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
-                        }
-                    },
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
+    ModalNavigationDrawer(
+        drawerState = drawer,
+        drawerContent = {
+            ChatsDrawer(
+                chats = chats,
+                currentId = currentId,
+                onNew = { vm.newChat(); scope.launch { drawer.close() } },
+                onOpen = { vm.openChat(it); scope.launch { drawer.close() } },
+                onDelete = vm::deleteChat,
+            )
         },
-    ) { pad ->
-        Box(Modifier.padding(pad).fillMaxSize().imePadding()) {
-            when (val s = state) {
-                Engine.State.Ready -> Chat(messages, generating, vm::send, vm::stop)
-                is Engine.State.Failed -> Centered {
-                    Text("Eco could not start", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Text(s.message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = vm::retryLoad) { Text("Try again") }
-                    OutlinedButton(onClick = vm::openSettings) { Text("Settings") }
+    ) {
+        Scaffold(
+            topBar = {
+                Column {
+                    TopAppBar(
+                        title = { Text("Eco Mini") },
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawer.open() } }) {
+                                Icon(Icons.Default.Menu, contentDescription = "Chats")
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = vm::newChat, enabled = messages.isNotEmpty()) {
+                                Icon(Icons.Default.Add, contentDescription = "New chat")
+                            }
+                            IconButton(onClick = vm::openSettings) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            }
+                        },
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                is Engine.State.Loading -> Getting(s.step)
-                Engine.State.Unloaded -> Centered {
-                    Text("Eco was paused to free memory.", textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = vm::retryLoad) { Text("Continue") }
+            },
+        ) { pad ->
+            Box(Modifier.padding(pad).fillMaxSize().imePadding()) {
+                when (val s = state) {
+                    Engine.State.Ready -> Chat(messages, generating, vm::send, vm::stop)
+                    is Engine.State.Failed -> Centered {
+                        Text("Eco Mini could not start", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Text(s.message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = vm::retryLoad) { Text("Try again") }
+                        OutlinedButton(onClick = vm::openSettings) { Text("Settings") }
+                    }
+                    is Engine.State.Loading -> Getting(s.step)
+                    Engine.State.Unloaded -> Centered {
+                        Text("Eco Mini was paused to free memory.", textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = vm::retryLoad) { Text("Continue") }
+                    }
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ChatsDrawer(
+    chats: List<ChatSummary>,
+    currentId: String?,
+    onNew: () -> Unit,
+    onOpen: (String) -> Unit,
+    onDelete: (String) -> Unit,
+) {
+    var confirm by remember { mutableStateOf<ChatSummary?>(null) }
+    val fmt = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    ModalDrawerSheet {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Chats", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            FilledTonalButton(onClick = onNew) { Text("New chat") }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        if (chats.isEmpty()) {
+            Text(
+                "Your chats are saved on this phone and appear here.",
+                modifier = Modifier.padding(16.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(
+                "Long-press a chat to delete it.",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            LazyColumn {
+                items(chats, key = { it.id }) { c ->
+                    val selected = c.id == currentId
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                            .combinedClickable(onClick = { onOpen(c.id) }, onLongClick = { confirm = c })
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    ) {
+                        Text(c.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            fmt.format(Date(c.updated)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+    confirm?.let { c ->
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            title = { Text("Delete this chat?") },
+            text = { Text("“${c.title}” will be deleted from this phone. This can't be undone.") },
+            confirmButton = { TextButton(onClick = { onDelete(c.id); confirm = null }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Cancel") } },
+        )
     }
 }
 

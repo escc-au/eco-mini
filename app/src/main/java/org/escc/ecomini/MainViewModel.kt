@@ -16,12 +16,16 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.escc.ecomini.chat.Chat
+import org.escc.ecomini.chat.ChatStore
+import org.escc.ecomini.chat.ChatSummary
+import org.escc.ecomini.chat.History
+import org.escc.ecomini.chat.Msg
 import org.escc.ecomini.engine.Engine
 import org.escc.ecomini.engine.LlamaNative
 import org.escc.ecomini.files.Checks
 import org.escc.ecomini.files.Manifest
 import org.escc.ecomini.files.Store
-import org.escc.ecomini.rag.Prompt
 import java.io.File
 import java.io.FileInputStream
 
@@ -36,13 +40,12 @@ sealed interface SetupState {
     data class Error(val message: String) : SetupState
 }
 
-data class Msg(val fromUser: Boolean, val text: String)
-
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val eco = app as EcoApp
     val store: Store = eco.store
     private val engine = eco.engine
     private val downloads = eco.downloads
+    private val chats = eco.chats
     val engineState: StateFlow<Engine.State> = engine.state
 
     private val _screen = MutableStateFlow(Screen.Setup)
@@ -51,6 +54,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val setup: StateFlow<SetupState> = _setup
     private val _messages = MutableStateFlow<List<Msg>>(emptyList())
     val messages: StateFlow<List<Msg>> = _messages
+    private val _chatList = MutableStateFlow<List<ChatSummary>>(emptyList())
+    /** Saved chats, most recently updated first. */
+    val chatList: StateFlow<List<ChatSummary>> = _chatList
+    private val _currentChatId = MutableStateFlow<String?>(null)
+    val currentChatId: StateFlow<String?> = _currentChatId
     private val _generating = MutableStateFlow(false)
     val generating: StateFlow<Boolean> = _generating
     private val _notice = MutableStateFlow<String?>(null)
@@ -64,6 +72,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var pollJob: Job? = null
 
     init {
+        refreshChats()
         when {
             store.pending != null -> { _screen.value = Screen.Setup; poll() }
             store.ready() -> { _screen.value = Screen.Chat; loadEngine() }
@@ -163,15 +172,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------------------------------------------------------------- chat
 
+    /** The open chat's id, title and created time; null for a new chat not yet saved. */
+    @Volatile private var current: Chat? = null
+    @Volatile private var lastSave = 0L
+
     fun send(text: String) {
         val question = text.trim()
         if (question.isEmpty() || _generating.value || engine.state.value != Engine.State.Ready) return
-        val history = turns(_messages.value)
+        // History comes from a copy of the chat; leaving turns out of the prompt never touches the chat.
+        val history = History.turns(_messages.value)
+        if (current == null) {
+            val now = System.currentTimeMillis()
+            current = Chat(ChatStore.newId(), ChatStore.titleFrom(question), now, now, emptyList())
+            _currentChatId.value = current?.id
+        }
         _messages.update { it + Msg(true, question) + Msg(false, "") }
         _generating.value = true
+        persist()
         askJob = viewModelScope.launch {
             val rc = engine.ask(history, question) { piece ->
                 _messages.update { list -> list.dropLast(1) + list.last().copy(text = list.last().text + piece) }
+                if (System.currentTimeMillis() - lastSave > 2000) persist()
             }
             val note = when (rc) {
                 LlamaNative.ERROR -> "Sorry, something went wrong while answering."
@@ -185,23 +206,67 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             _generating.value = false
+            persist()
         }
+    }
+
+    /** Saves the open chat as it is now. Saves run one at a time, in order, off the main thread. */
+    private fun persist() {
+        val meta = current ?: return
+        lastSave = System.currentTimeMillis()
+        // An answer that has not started yet is not saved as an empty message.
+        val msgs = _messages.value.let { if (it.lastOrNull()?.let { m -> !m.fromUser && m.text.isEmpty() } == true) it.dropLast(1) else it }
+        val chat = meta.copy(updated = lastSave, messages = msgs)
+        viewModelScope.launch(eco.chatIo) {
+            runCatching { chats.save(chat) }
+            _chatList.value = chats.list()
+        }
+    }
+
+    fun refreshChats() {
+        viewModelScope.launch(eco.chatIo) { _chatList.value = chats.list() }
     }
 
     fun stop() = engine.stop()
 
-    fun newChat() {
+    /** Stops any answer in progress, then switches to the given chat (null = a new, empty one). */
+    private fun switchTo(chat: Chat?) {
         engine.stop()
         viewModelScope.launch {
             askJob?.join()
-            _messages.value = emptyList()
+            current = chat?.copy(messages = emptyList())
+            _currentChatId.value = chat?.id
+            _messages.value = chat?.messages.orEmpty()
         }
     }
 
-    /** Completed question/answer pairs, in order. */
-    private fun turns(msgs: List<Msg>): List<Prompt.Turn> =
-        msgs.chunked(2).filter { it.size == 2 && it[0].fromUser && !it[1].fromUser && it[1].text.isNotBlank() }
-            .map { Prompt.Turn(it[0].text, it[1].text.trim()) }
+    fun newChat() = switchTo(null)
+
+    fun openChat(id: String) {
+        viewModelScope.launch {
+            val chat = withContext(eco.chatIo) { chats.load(id) }
+            if (chat != null) switchTo(chat) else refreshChats()
+        }
+    }
+
+    fun deleteChat(id: String) {
+        if (current?.id == id) switchTo(null)
+        viewModelScope.launch(eco.chatIo) {
+            askJob?.join()
+            chats.delete(id)
+            _chatList.value = chats.list()
+        }
+    }
+
+    fun deleteAllChats() {
+        switchTo(null)
+        viewModelScope.launch(eco.chatIo) {
+            askJob?.join()
+            chats.deleteAll()
+            _chatList.value = chats.list()
+            _notice.value = "All chats deleted."
+        }
+    }
 
     // ---------------------------------------------------------------- settings
 
@@ -230,7 +295,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun retryGpu() {
         store.gpuBroken = false
-        _notice.value = "Close Eco completely and open it again to try the GPU."
+        _notice.value = "Close Eco Mini completely and open it again to try the GPU."
         bump()
     }
 

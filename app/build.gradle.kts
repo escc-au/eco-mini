@@ -22,8 +22,8 @@ android {
         applicationId = "org.escc.ecomini"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "0.0.3"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild {
             cmake {
@@ -134,3 +134,6 @@ tasks.withType<Test>().configureEach {
     systemProperty("eco.hostSearchLib", hostSearchLib.get().asFile.absolutePath)
     systemProperty("eco.projectDir", projectDir.absolutePath)
 }
+
+// Building a release always runs the unit tests first; a failing test stops the build.
+tasks.matching { it.name == "assembleRelease" }.configureEach { dependsOn("testReleaseUnitTest") }

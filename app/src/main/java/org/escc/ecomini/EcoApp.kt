@@ -5,10 +5,14 @@ import android.content.ComponentCallbacks2
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
+import org.escc.ecomini.chat.ChatStore
 import org.escc.ecomini.engine.Engine
 import org.escc.ecomini.files.Downloads
 import org.escc.ecomini.files.Store
+import java.io.File
+import java.util.concurrent.Executors
 
 class EcoApp : Application() {
     lateinit var store: Store
@@ -17,7 +21,11 @@ class EcoApp : Application() {
         private set
     lateinit var downloads: Downloads
         private set
+    lateinit var chats: ChatStore
+        private set
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /** One thread for saving and reading chats, so saves happen in order. */
+    val chatIo = Executors.newSingleThreadExecutor { Thread(it, "eco-chats") }.asCoroutineDispatcher()
 
     override fun onCreate() {
         super.onCreate()
@@ -29,6 +37,7 @@ class EcoApp : Application() {
         }
         engine = Engine(this, store)
         downloads = Downloads(this, store)
+        chats = ChatStore(File(filesDir, "chats"))
     }
 
     @Suppress("DEPRECATION")

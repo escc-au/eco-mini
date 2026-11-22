@@ -8,6 +8,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import org.escc.ecomini.chat.History
 import org.escc.ecomini.files.Checks
 import org.escc.ecomini.files.Store
 import org.escc.ecomini.rag.Prompt
@@ -175,15 +176,11 @@ class Engine(private val ctx: Context, private val store: Store) {
     private fun generateText(prompt: String, max: Int, onText: (String) -> Unit): Int =
         LlamaNative.generate(llm, prompt.toByteArray(), max) { onText(String(it, Charsets.UTF_8)) }
 
-    /** Drops the oldest turns until the prompt plus the answer fits in the context. */
+    /** Leaves out the oldest turns of the prompt (never of the saved chat) until it fits the context. */
     private fun fit(history: List<Prompt.Turn>, reserve: Int, build: (List<Prompt.Turn>) -> String): String {
-        var h = history
-        var p = build(h)
-        while (h.isNotEmpty() && tokens(p) + reserve > Prompt.CONTEXT_SIZE) {
-            h = h.drop(1)
-            p = build(h)
-        }
-        return p
+        val (prompt, dropped) = History.fit(history, reserve, ::tokens, Prompt.CONTEXT_SIZE, build)
+        if (dropped > 0) Log.i(TAG, "left the oldest $dropped of ${history.size} turns out of the prompt")
+        return prompt
     }
 
     /** Answers a question, streaming text pieces through onText. Returns a LlamaNative status. */

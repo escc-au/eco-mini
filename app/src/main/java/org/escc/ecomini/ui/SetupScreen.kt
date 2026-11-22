@@ -52,7 +52,7 @@ fun SetupScreen(vm: MainViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Set up Eco") },
+                title = { Text("Set up Eco Mini") },
                 actions = {
                     IconButton(onClick = vm::openSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings") }
                 },
@@ -64,18 +64,18 @@ fun SetupScreen(vm: MainViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             val update = (state as? SetupState.Offer)?.isUpdate == true
-            Text(if (update) "Updated files are available" else "Welcome to Eco", style = MaterialTheme.typography.headlineSmall)
+            Text(if (update) "Updated files are available" else "Welcome to Eco Mini", style = MaterialTheme.typography.headlineSmall)
             if (!update) {
                 Text(
-                    "Eco runs entirely on your phone. Nothing you type leaves it. Before the first chat, " +
-                        "Eco needs two files: its language model and its knowledge index. They are " +
-                        "downloaded once from Hugging Face (huggingface.co), and after that Eco works offline.",
+                    "Eco Mini runs entirely on your phone. Nothing you type leaves it. Before the first chat, " +
+                        "it needs two files: the Eco language model and its knowledge index. They are " +
+                        "downloaded once from Hugging Face (huggingface.co), and after that Eco Mini works offline.",
                 )
             }
             when (val s = state) {
                 SetupState.Intro -> {
                     Text(
-                        "To show you the download size, Eco will read a small file list from huggingface.co.",
+                        "To show you the download size, Eco Mini will read a small file list from huggingface.co.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(onClick = { vm.checkDownloadSize() }) { Text("Check download size") }
